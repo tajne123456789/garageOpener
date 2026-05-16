@@ -49,16 +49,28 @@ captive_portal:
 # HC-SR04 ECHO -> GPIO5 pres odporovy delic 5 V -> 3.3 V
 # Delic: ECHO -- 5 kOhm -- GPIO5/node -- 10 kOhm -- GND
 # Kontrola multimetrem bez napajeni: ECHO-GPIO5 cca 5 kOhm, GPIO5-GND cca 10 kOhm, ECHO-GND cca 15 kOhm.
+button:
+  - platform: restart
+    name: "Restart"
+
 sensor:
   - platform: ultrasonic
     id: distance_m
     name: "Vzdalenost"
     trigger_pin: GPIO4
     echo_pin: GPIO5
-    timeout: 4m
+    pulse_time: 10us
+    timeout: 3m
     update_interval: 2s
+    unit_of_measurement: "m"
+    device_class: distance
+    state_class: measurement
+    accuracy_decimals: 3
     filters:
       - filter_out: nan
+      - clamp:
+          min_value: 0.02
+          max_value: 3.0
       - median:
           window_size: 5
           send_every: 1
@@ -75,6 +87,7 @@ sensor:
       then:
         - lambda: |-
             ESP_LOGI("hcsr04", "Publikuji filtrovanou vzdalenost %.3f m / %.1f cm", x, x * 100.0f);
+        - component.update: distance_cm
 
   - platform: template
     id: distance_cm
@@ -83,7 +96,7 @@ sensor:
     device_class: distance
     state_class: measurement
     accuracy_decimals: 1
-    update_interval: 2s
+    update_interval: never
     lambda: |-
       if (isnan(id(distance_m).state)) {
         ESP_LOGW("hcsr04", "Vzdalenost cm=NAN, protoze distance_m zatim nema platnou hodnotu");
