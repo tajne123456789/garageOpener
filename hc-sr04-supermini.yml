@@ -5,6 +5,13 @@ substitutions:
 esphome:
   name: ${device_name}
   friendly_name: ${device_friendly_name}
+  on_boot:
+    priority: -10
+    then:
+      - logger.log:
+          level: INFO
+          tag: hcsr04
+          format: "Startuji mereni HC-SR04: TRIG=GPIO4, ECHO=GPIO5 pres delic 5k/10k, timeout=4 m"
 
 esp32:
   board: esp32-c3-devkitm-1
@@ -12,7 +19,10 @@ esp32:
     type: esp-idf
 
 logger:
-  level: info
+  level: debug
+  logs:
+    sensor: debug
+    ultrasonic.sensor: debug
 
 ota:
   - platform: esphome
@@ -37,7 +47,8 @@ captive_portal:
 # HC-SR04 GND  -> GND
 # HC-SR04 TRIG -> GPIO4
 # HC-SR04 ECHO -> GPIO5 pres odporovy delic 5 V -> 3.3 V
-# Priklad delice: ECHO -- 1 kOhm -- GPIO5 -- 2 kOhm -- GND
+# Delic: ECHO -- 5 kOhm -- GPIO5/node -- 10 kOhm -- GND
+# Kontrola multimetrem bez napajeni: ECHO-GPIO5 cca 5 kOhm, GPIO5-GND cca 10 kOhm, ECHO-GND cca 15 kOhm.
 sensor:
   - platform: ultrasonic
     id: distance_m
@@ -52,6 +63,18 @@ sensor:
           window_size: 5
           send_every: 1
           send_first_at: 1
+    on_raw_value:
+      then:
+        - lambda: |-
+            if (isnan(x)) {
+              ESP_LOGW("hcsr04", "RAW=NAN - neprisla odezva na ECHO GPIO5. Zkontroluj GND, napajeni 5 V, delic ECHO-5k-GPIO5-10k-GND a prohozeni TRIG/ECHO.");
+            } else {
+              ESP_LOGD("hcsr04", "RAW=%.3f m / %.1f cm", x, x * 100.0f);
+            }
+    on_value:
+      then:
+        - lambda: |-
+            ESP_LOGI("hcsr04", "Publikuji filtrovanou vzdalenost %.3f m / %.1f cm", x, x * 100.0f);
 
   - platform: template
     id: distance_cm
@@ -63,6 +86,17 @@ sensor:
     update_interval: 2s
     lambda: |-
       if (isnan(id(distance_m).state)) {
+        ESP_LOGW("hcsr04", "Vzdalenost cm=NAN, protoze distance_m zatim nema platnou hodnotu");
         return NAN;
       }
-      return id(distance_m).state * 100.0;
+      float distance_cm = id(distance_m).state * 100.0f;
+      ESP_LOGD("hcsr04", "Prepocet %.3f m -> %.1f cm", id(distance_m).state, distance_cm);
+      return distance_cm;
+
+  - platform: wifi_signal
+    name: "WiFi signal"
+    update_interval: 30s
+
+  - platform: uptime
+    name: "Uptime"
+    update_interval: 30s
