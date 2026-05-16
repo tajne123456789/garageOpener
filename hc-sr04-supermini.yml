@@ -31,15 +31,15 @@ captive_portal:
 # Zapojeni pro ESP32-C3 SuperMini:
 # HC-SR04 VCC  -> 5V/VBUS na ESP32 desce
 # HC-SR04 GND  -> GND
-# HC-SR04 TRIG -> GPIO5
-# HC-SR04 ECHO -> GPIO6 pres odporovy delic 5 V -> 3.3 V
-# Priklad delice: ECHO -- 1 kOhm -- GPIO6 -- 2 kOhm -- GND
+# HC-SR04 TRIG -> GPIO4
+# HC-SR04 ECHO -> GPIO5 pres odporovy delic 5 V -> 3.3 V
+# Priklad delice: ECHO -- 1 kOhm -- GPIO5 -- 2 kOhm -- GND
 sensor:
   - platform: ultrasonic
     id: distance_m
     name: "Vzdalenost"
-    trigger_pin: GPIO5
-    echo_pin: GPIO6
+    trigger_pin: GPIO4
+    echo_pin: GPIO5
     timeout: 4m
     update_interval: 2s
     filters:
