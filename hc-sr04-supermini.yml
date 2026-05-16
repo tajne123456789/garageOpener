@@ -14,10 +14,14 @@ esp32:
 logger:
   level: info
 
-api:
-
 ota:
   - platform: esphome
+    password: !secret ota_hladinomer01_pass
+
+api:
+  encryption:
+    key: !secret api_hladinomer03_key
+  reboot_timeout: 0s
 
 wifi:
   ssid: !secret wifi_ssid
