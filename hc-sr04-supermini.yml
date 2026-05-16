@@ -1,0 +1,64 @@
+substitutions:
+  device_name: esp32-hcsr04
+  device_friendly_name: "ESP32 HC-SR04"
+
+esphome:
+  name: ${device_name}
+  friendly_name: ${device_friendly_name}
+
+esp32:
+  board: esp32-c3-devkitm-1
+  framework:
+    type: esp-idf
+
+logger:
+  level: info
+
+api:
+
+ota:
+  - platform: esphome
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_passwd
+  ap:
+    ssid: "${device_name} Fallback"
+    password: "hcsr04-setup"
+
+captive_portal:
+
+# Zapojeni pro ESP32-C3 SuperMini:
+# HC-SR04 VCC  -> 5V/VBUS na ESP32 desce
+# HC-SR04 GND  -> GND
+# HC-SR04 TRIG -> GPIO5
+# HC-SR04 ECHO -> GPIO6 pres odporovy delic 5 V -> 3.3 V
+# Priklad delice: ECHO -- 1 kOhm -- GPIO6 -- 2 kOhm -- GND
+sensor:
+  - platform: ultrasonic
+    id: distance_m
+    name: "Vzdalenost"
+    trigger_pin: GPIO5
+    echo_pin: GPIO6
+    timeout: 4m
+    update_interval: 2s
+    filters:
+      - filter_out: nan
+      - median:
+          window_size: 5
+          send_every: 1
+          send_first_at: 1
+
+  - platform: template
+    id: distance_cm
+    name: "Vzdalenost cm"
+    unit_of_measurement: "cm"
+    device_class: distance
+    state_class: measurement
+    accuracy_decimals: 1
+    update_interval: 2s
+    lambda: |-
+      if (isnan(id(distance_m).state)) {
+        return NAN;
+      }
+      return id(distance_m).state * 100.0;
