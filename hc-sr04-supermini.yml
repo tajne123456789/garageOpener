@@ -1,6 +1,6 @@
 substitutions:
-  device_name: esp32-hcsr04
-  device_friendly_name: "ESP32 HC-SR04"
+  device_name: esp32-hcsr04-01
+  device_friendly_name: "Garage Distance Sensor 01"
 
 esphome:
   name: ${device_name}
@@ -19,18 +19,18 @@ esp32:
     type: esp-idf
 
 logger:
-  level: debug
-  logs:
-    sensor: debug
-    ultrasonic.sensor: debug
+  level: info
+  # logs:
+  #   sensor: debug
+  #   ultrasonic.sensor: debug
 
 ota:
   - platform: esphome
-    password: !secret ota_hladinomer01_pass
+    password: !secret esp32-hcsr04-01_pass
 
 api:
   encryption:
-    key: !secret api_hladinomer03_key
+    key: !secret esp32-hcsr04-01
   reboot_timeout: 0s
 
 wifi:
