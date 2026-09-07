@@ -1,0 +1,80 @@
+# Automaticke otevreni garazovych vrat pri prijezdu autem
+#
+# Prerekvizity:
+#   - HA Companion app na obou telefonech (poloha + detekce aktivity)
+#   - HC-SR04 senzor (sensor.vzdalenost_cm) meri vzdalenost v garazi
+#   - Helper sensor.garage_gate_status hlasi "Closed" / "Open"
+#   - switch.garagedooropener ovlada vrata
+#
+# Logika:
+#   Telefon se priblizi na 500 m k domu
+#   + osoba jede autem (detected_activity = in_vehicle)
+#   + vrata jsou zavrena
+#   + auto NENI v garazi (vzdalenost > 90 cm)
+#   => otevre vrata a posle notifikaci
+
+automation:
+  - alias: "Garaz - automaticke otevreni pri prijezdu"
+    id: garage_auto_open_on_arrival
+    description: >
+      Kdyz jsou vrata zavrena, auto neni v garazi a nekdo z rodiny
+      jede autem a priblizi se na 500 m k domu, otevre vrata.
+    mode: single
+
+    trigger:
+      # Telefon 1 (SM-A556B) se priblizi na 500 m
+      - platform: template
+        value_template: >-
+          {{ distance('device_tracker.sm_a556b', 'zone.home') | float(999) < 0.5 }}
+        id: phone_a556b
+
+      # Telefon 2 (SM-IRCA) se priblizi na 500 m
+      - platform: template
+        value_template: >-
+          {{ distance('device_tracker.sm_irca', 'zone.home') | float(999) < 0.5 }}
+        id: phone_irca
+
+    condition:
+      # 1) Vrata musi byt zavrena
+      - condition: state
+        entity_id: sensor.garage_gate_status
+        state: "Closed"
+
+      # 2) Auto NENI v garazi (senzor ukazuje > 90 cm = prazdna garaz)
+      - condition: numeric_state
+        entity_id: sensor.vzdalenost_cm
+        above: 90
+
+      # 3) Osoba, ktera triggerovala, musi jet autem
+      - condition: template
+        value_template: >-
+          {% if trigger.id == 'phone_a556b' %}
+            {{ states('sensor.sm_a556b_detected_activity') == 'in_vehicle' }}
+          {% elif trigger.id == 'phone_irca' %}
+            {{ states('sensor.sm_irca_detected_activity') == 'in_vehicle' }}
+          {% else %}
+            false
+          {% endif %}
+
+    action:
+      # Otevri vrata
+      - service: switch.turn_on
+        target:
+          entity_id: switch.garagedooropener
+
+      # Notifikace na oba telefony
+      - service: notify.mobile_app_sm_a556b
+        data:
+          title: "Garáž"
+          message: >-
+            Vrata se automaticky otevřely ({{ trigger.id }}).
+
+      - service: notify.mobile_app_sm_irca
+        data:
+          title: "Garáž"
+          message: >-
+            Vrata se automaticky otevřely ({{ trigger.id }}).
+
+      # Cooldown 5 minut - zabrani opakovani pri kolisani GPS
+      - delay:
+          minutes: 5
